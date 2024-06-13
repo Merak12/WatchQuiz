@@ -3,7 +3,7 @@ defmodule JswatchWeb.IndigloManager do
 
   def init(ui) do
     :gproc.reg({:p, :l, :ui_event})
-    {:ok, %{ui_pid: ui, st: IndigloOff, count: 0, timer1: nil, snooze_timer: nil}} #agregamos snoozer tittle
+    {:ok, %{ui_pid: ui, st: IndigloOff, count: 0, timer1: nil, snooze_timer: nil}}
   end
 
   def handle_info(:"top-right-pressed", %{ui_pid: pid, st: IndigloOff} = state) do
@@ -68,7 +68,7 @@ defmodule JswatchWeb.IndigloManager do
     end
   end
 
-  #modificamos boton cuando el boton izquierdo se presiona se detiene
+  #para detenr el snooozer con el boton izquierdo
   def handle_info(:"bottom-left-pressed", %{ui_pid: pid, st: st} = state) do
     if st in [AlarmOn, AlarmOff] do
       GenServer.cast(pid, :unset_indiglo)
@@ -80,11 +80,19 @@ defmodule JswatchWeb.IndigloManager do
       {:noreply, state}
     end
   end
-#aqui tamb agregamos para detener la alarma al terminar
+  #agregamos snooze cuando se tenga la alarma en off
   def handle_info(:snooze, %{ui_pid: pid, st: AlarmOff} = state) do
     Process.send_after(self(), AlarmOn_AlarmOff, 500)
     GenServer.cast(pid, :set_indiglo)
     {:noreply, %{state | count: 51, st: AlarmOn}}
+  end
+
+  # funcion que cuando este en el estado de alarma al presiona boton derecho se active, estado acyualizado
+  def handle_info(:"bottom-right-pressed", %{ui_pid: pid, st: st} = state) do
+    if st in [AlarmOn, AlarmOff] do
+      snooze_alarm(self())
+    end
+    {:noreply, state}
   end
 
   def handle_info(event, state) do
@@ -92,13 +100,12 @@ defmodule JswatchWeb.IndigloManager do
     {:noreply, state}
   end
 
-  #función para el snooze inicie con 10 min
+  #funciones adicionales que cuentan el tiempo y estado
   def snooze_alarm(pid) do
     snooze_timer = Process.send_after(self(), :snooze, 10 * 60 * 1000)
     {:noreply, %{pid | snooze_timer: snooze_timer}}
   end
 
-  manejo del cast de snooze
   def handle_cast(:snooze_alarm, state) do
     snooze_alarm(state.ui_pid)
     {:noreply, state}
